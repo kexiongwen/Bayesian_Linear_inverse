@@ -21,21 +21,21 @@ def inverse_difference(x,axis = 0):
     
     if axis == 0:
         
-        inv_diff1 = torch.ones(P1+1,P2,device = x.device)
-        inv_diff1[1:-1,:] = x[0:-1,:]-x[1:,:]
-        inv_diff1[0,:] = -x[0,:]
-        inv_diff1[-1,:] = x[-1,:]
+        inv_diff = torch.ones(P1+1,P2,device = x.device)
+        inv_diff[1:-1,:] = x[0:-1,:]-x[1:,:]
+        inv_diff[0,:] = -x[0,:]
+        inv_diff[-1,:] = x[-1,:]
         
-        return inv_diff1
+        return inv_diff
     
     else:
         
-        inv_diff1 = torch.ones(P1,P2+1,device = x.device)
-        inv_diff1[:,1:-1] = x[:,0:-1]-x[:,1:]
-        inv_diff1[:,0] = -x[:,0]
-        inv_diff1[:,-1] = x[:,-1]
+        inv_diff = torch.ones(P1,P2+1,device = x.device)
+        inv_diff[:,1:-1] = x[:,0:-1]-x[:,1:]
+        inv_diff[:,0] = -x[:,0]
+        inv_diff[:,-1] = x[:,-1]
         
-        return inv_diff1
+        return inv_diff
 
 def proximal_map(x_sample,z1,z2,z3,v1,v2,v3,rho,lambda0,hyper):
     
@@ -84,7 +84,7 @@ def proximal_map1(x_sample,z1,z2,v1,v2,rho,lambda0,hyper):
     lambda1 = int(hyper)
     
     # Initialization
-    device = x_sample.get_device() 
+    device = x_sample.device
     y = x_sample
 
     for k in range(0,20):
@@ -118,21 +118,19 @@ def proximal_map1(x_sample,z1,z2,v1,v2,rho,lambda0,hyper):
     
 def proximal_langevin(x_init,Y,A,sigma,hyper,h = 1,M = 10000,burn_in = 10000):
     
-    x_sample = x_init.to(torch.float32)
-    Y = Y.to(torch.float32)
-    A = A.to(torch.float32)
-    
-    device = Y.get_device()
-    _,P = A.shape
-    
-    rho = 1
     
     pixel = int(P**0.5)    
     sigma2 = sigma**2
+    device = Y.device
+    _,P = A.shape
     
+    x_sample = x_init.to(torch.float32).view(pixel,pixel)
+    Y = Y.to(torch.float32)
+    A = A.to(torch.float32)
+    
+    rho = 1
     x_mean = torch.zeros(pixel,pixel,device = device)
     x_2 = torch.zeros(pixel,pixel,device = device)
-    
     Lipschitz = torch.linalg.matrix_norm(A.T@A/sigma2,1)
     
     gamma = 1/(6*Lipschitz)

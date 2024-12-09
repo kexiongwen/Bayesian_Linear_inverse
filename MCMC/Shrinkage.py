@@ -6,6 +6,12 @@ def inv_gauss(mu):
     a = 1+0.5*(ink-((ink+2).square()-4).sqrt())
     return torch.where((1/(1+a))>=torch.rand_like(mu), mu*a, mu/a)
 
+    
+def GIG(mu):
+    ink=(1e1*torch.randn_like(mu)).square()/(1e2*mu)
+    a=1+0.5*(ink-((ink+2).square()-4).sqrt())
+    return torch.where((1/(1+a))>=torch.rand_like(mu), mu/a, mu*a)    
+
 def shrinkage(x_sample,a,b):
     
     N,P = x_sample.size()
@@ -16,12 +22,14 @@ def shrinkage(x_sample,a,b):
     ink = ink.mul_(lam)
         
     #Sample V
-    v = 2/inv_gauss(1/ink)
+    #v = 2/inv_gauss(1/ink)
+    v = 2*GIG(ink)
     
     #Sample tau
-    tau = v/inv_gauss(v/ink.square()).sqrt()
+    #tau = v/inv_gauss(v/ink.square()).sqrt()
+    tau = v*GIG((1e1*ink).square()/(1e2*v)).sqrt()
     
-    return torch.where(torch.isnan(tau),1000,torch.where(torch.isinf(tau),1000, lam.square()/tau))
+    return torch.where(torch.isnan(tau),1e4,torch.where(torch.isinf(tau),1e4, tau/lam.square()))
 
 
 def shrinkage1(x_sample,a,b):
@@ -34,6 +42,7 @@ def shrinkage1(x_sample,a,b):
     ink = ink.mul_(lam)      
             
     #Sample tau
-    tau = 1/inv_gauss(1/ink).sqrt()
+    #tau = 1/inv_gauss(1/ink).sqrt()
+    tau = GIG(ink).sqrt()
             
-    return torch.where(torch.isnan(tau),100,torch.where(torch.isinf(tau),100, lam/tau))
+    return torch.where(torch.isnan(tau),1e3,torch.where(torch.isinf(tau),1e3, tau/lam))

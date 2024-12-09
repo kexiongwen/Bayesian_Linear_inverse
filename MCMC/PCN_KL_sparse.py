@@ -47,7 +47,7 @@ def sparse_A(A):
     
     return indice_A,values_A
 
-def PCN(x_init,Y,A,sigma,hyper,M = 600000,burn_in = 600000):
+def PCN(x_init,Y,A,sigma,hyper,M = 10000,burn_in = 10000):
     
     x = x_init.to(torch.float64)
     Y = Y.to(torch.float64)

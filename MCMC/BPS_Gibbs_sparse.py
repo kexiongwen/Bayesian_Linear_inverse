@@ -22,21 +22,21 @@ def inverse_difference(x,axis = 0):
     
     if axis == 0:
         
-        inv_diff1 = torch.ones(P1+1,P2,device = x.device)
-        inv_diff1[1:-1,:] = x[0:-1,:]-x[1:,:]
-        inv_diff1[0,:] = -x[0,:]
-        inv_diff1[-1,:] = x[-1,:]
+        inv_diff = torch.ones(P1+1,P2,device = x.device)
+        inv_diff[1:-1,:] = x[0:-1,:]-x[1:,:]
+        inv_diff[0,:] = -x[0,:]
+        inv_diff[-1,:] = x[-1,:]
         
-        return inv_diff1
+        return inv_diff
     
     else:
         
-        inv_diff1 = torch.ones(P1,P2+1,device = x.device)
-        inv_diff1[:,1:-1] = x[:,0:-1]-x[:,1:]
-        inv_diff1[:,0] = -x[:,0]
-        inv_diff1[:,-1] = x[:,-1]
+        inv_diff = torch.ones(P1,P2+1,device = x.device)
+        inv_diff[:,1:-1] = x[:,0:-1]-x[:,1:]
+        inv_diff[:,0] = -x[:,0]
+        inv_diff[:,-1] = x[:,-1]
         
-        return inv_diff1
+        return inv_diff
         
 def sparse_A(A,device):
     
@@ -78,8 +78,8 @@ def BPS_Gibbs(x_init,Y,A,sigma,hyper,h = 1,M = 300000,burn_in = 300000):
     
     v = torch.randn(pixel,pixel,device = device)
 
-    D1 = shrinkage1(difference(x_sample,axis = 0),a,b)
-    D2 = shrinkage1(difference(x_sample,axis = 1),c,d)
+    D1 = shrinkage(difference(x_sample,axis = 0),a,b)
+    D2 = shrinkage(difference(x_sample,axis = 1),c,d)
     if h == 1:
         D3 = shrinkage(x_sample, e,f)
         
@@ -128,8 +128,8 @@ def BPS_Gibbs(x_init,Y,A,sigma,hyper,h = 1,M = 300000,burn_in = 300000):
         
         if indicator == 0:
                         
-            D1 = shrinkage1(difference(x_sample,axis = 0),a,b)
-            D2 = shrinkage1(difference(x_sample,axis = 1),c,d)
+            D1 = shrinkage(difference(x_sample,axis = 0),a,b)
+            D2 = shrinkage(difference(x_sample,axis = 1),c,d)
             
             if h == 1:
                 D3 = shrinkage(x_sample,e,f)

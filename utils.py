@@ -104,7 +104,7 @@ def initial(A,y,device):
     _,P = A.shape    
     pixel = int(P**0.5)
     
-    y = torch.from_numpy(y).to(device).to(torch.float32)
-    A0 = torch.from_numpy(A.copy()).to(device).to(torch.float32)
+    y0 = torch.from_numpy(y).to(device)
+    A0 = torch.from_numpy(A.copy()).to(device)
     
-    return torch.linalg.solve(A0.T@A0+10*torch.diag(torch.ones(pixel**2)),A0.T@y)
+    return torch.linalg.solve(A0.T@A0+10*torch.diag(torch.ones(pixel**2,device = device)),A0.T@y0)

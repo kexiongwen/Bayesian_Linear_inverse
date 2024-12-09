@@ -4,12 +4,10 @@ from torch_sparse import spmm
 
 def sparse_A(A,sigma2,device):
     
-    B = torch.from_numpy(A.copy()).to(device)
+    A_prime = A.to_sparse()
+    A_T = (A.T).to_sparse()
     
-    A_prime = B.to_sparse()
-    A_T = (B.T).to_sparse()
-    
-    Lipschitz = torch.linalg.matrix_norm(B.T@B/sigma2,1)
+    Lipschitz = torch.linalg.matrix_norm(A.T@A/sigma2,1)
     
     indice_A = A_prime.indices()
     values_A = A_prime.values()
@@ -23,15 +21,15 @@ def difference(x,axis = 0):
     
     if axis==0:
         
-        diff1 = x[1:,:]-x[0:-1,:]
+        diff = x[1:,:]-x[0:-1,:]
         
-        return diff1
+        return diff
             
     else:
         
-        diff1 = x[:,1:]-x[:,0:-1]
+        diff = x[:,1:]-x[:,0:-1]
         
-        return diff1
+        return diff
 
 def inverse_difference(x,axis = 0):
     
@@ -39,21 +37,21 @@ def inverse_difference(x,axis = 0):
     
     if axis==0:
         
-        inv_diff1 = torch.ones(P1+1,P2,device = x.device)
-        inv_diff1[1:-1,:] = x[0:-1,:]-x[1:,:]
-        inv_diff1[0,:] = -x[0,:]
-        inv_diff1[-1,:] = x[-1,:]
+        inv_diff = torch.ones(P1+1,P2,device = x.device)
+        inv_diff[1:-1,:] = x[0:-1,:]-x[1:,:]
+        inv_diff[0,:] = -x[0,:]
+        inv_diff[-1,:] = x[-1,:]
         
-        return inv_diff1
+        return inv_diff
     
     else:
         
-        inv_diff1 = torch.ones(P1,P2+1,device = x.device)
-        inv_diff1[:,1:-1] = x[:,0:-1]-x[:,1:]
-        inv_diff1[:,0] = -x[:,0]
-        inv_diff1[:,-1] = x[:,-1]
+        inv_diff = torch.ones(P1,P2+1,device = x.device)
+        inv_diff[:,1:-1] = x[:,0:-1]-x[:,1:]
+        inv_diff[:,0] = -x[:,0]
+        inv_diff[:,-1] = x[:,-1]
         
-        return inv_diff1
+        return inv_diff
 
 def proximal_map(x_sample,z1,z2,z3,v1,v2,v3,rho,lambda0,hyper):
     
@@ -62,8 +60,8 @@ def proximal_map(x_sample,z1,z2,z3,v1,v2,v3,rho,lambda0,hyper):
     lambda1,lambda2 = hyper
     
     # Initialization
-    device = x_sample.get_device() 
-    y = x_sample
+    device = x_sample.device 
+    y = x_sample.clone()
 
     for k in range(0,20):
     
@@ -73,6 +71,7 @@ def proximal_map(x_sample,z1,z2,z3,v1,v2,v3,rho,lambda0,hyper):
             
             gradient = (y-x_sample)/lambda0+rho*inverse_difference((v1+difference(y,axis = 0)-z1),axis = 0)+\
                 rho*inverse_difference((v2+difference(y,axis = 1)-z2),axis = 1)+rho*(v3+y-z3)        
+          
             y.add_(gradient,alpha = -eps)
         
         # Updating z
@@ -97,22 +96,24 @@ def proximal_map(x_sample,z1,z2,z3,v1,v2,v3,rho,lambda0,hyper):
 
 def proximal_map1(x_sample,z1,z2,v1,v2,rho,lambda0,hyper):
     
-    eps = 2e-4
+    eps = 1e-5
     lambda1 = int(hyper)
     
     # Initialization
-    device = x_sample.get_device() 
-    y = x_sample
+    device = x_sample.device
+    y = x_sample.clone()
 
     for k in range(0,20):
     
         # Updating y
         
-        for i in range(0,10):
+        for i in range(0,20):
             
             gradient = (y-x_sample)/lambda0+rho*inverse_difference((v1+difference(y,axis = 0)-z1),axis = 0)+\
-                rho*inverse_difference((v2+difference(y,axis = 1)-z2),axis = 1)    
+                rho*inverse_difference((v2+difference(y,axis = 1)-z2),axis = 1)
+                    
             y.add_(gradient,alpha = -eps)
+            #y = y-eps*gradient
             
         # Updating z
         
@@ -134,16 +135,14 @@ def proximal_map1(x_sample,z1,z2,v1,v2,rho,lambda0,hyper):
     
 def proximal_langevin(x_init,Y,A,sigma,hyper,h = 1,M = 10000,burn_in = 10000):
     
-    x_sample = x_init.to(torch.float32)
+    device = Y.device
+    N,P = A.shape
+    pixel = int(P**0.5) 
+    
+    x_sample = x_init.to(torch.float32).view(pixel,pixel)
     Y = Y.to(torch.float32)
     A = A.to(torch.float32)
-    
-    device = Y.get_device()
-    N,P = A.shape
-    
     rho = 1
-    
-    pixel = int(P**0.5)    
     sigma2 = sigma**2
     
     x_mean = torch.zeros(pixel,pixel,device = device)
@@ -157,7 +156,7 @@ def proximal_langevin(x_init,Y,A,sigma,hyper,h = 1,M = 10000,burn_in = 10000):
     z1 = difference(x_sample,axis = 0)
     z2 = difference(x_sample,axis = 1)
     
-    if h==1:
+    if h == 1:
         z3 = x_sample
         v3 = torch.zeros_like(z3)
         
@@ -168,7 +167,7 @@ def proximal_langevin(x_init,Y,A,sigma,hyper,h = 1,M = 10000,burn_in = 10000):
     
         gradient = spmm(indice_AT,values_AT,P,N,(spmm(indice_A, values_A, N,P,x_sample.view(-1,1))-Y)).view(pixel,pixel)/sigma2
         
-        if h==1:
+        if h == 1:
             proximal_gradient,z1,z2,z3,v1,v2,v3 = proximal_map(x_sample,z1,z2,z3,v1,v2,v3,rho,lambda0,hyper)
         else:
             proximal_gradient,z1,z2,v1,v2 = proximal_map1(x_sample,z1,z2,v1,v2,rho,lambda0,hyper)
