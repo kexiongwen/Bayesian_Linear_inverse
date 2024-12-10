@@ -1,7 +1,7 @@
 import math
 import torch
 import numpy as np
-from math import log10
+
 
 
 M_PI = math.pi
@@ -112,15 +112,4 @@ def initial(A,y,device):
     return torch.linalg.solve(A0.T@A0+10*torch.diag(torch.ones(pixel**2,device = device)),A0.T@y0)
 
 
-def PSNR(ground_truth, predict):
-    """
-    """
-    ground_truth = (ground_truth - ground_truth.min()) / (ground_truth.max() - ground_truth.min())
-    predict = (predict - predict.min()) / (predict.max() - predict.min())
-    mse = np.mean((ground_truth - predict) ** 2)
-    if (mse == 0):  # MSE is zero means no noise is present in the signal .
-        # Therefore PSNR have no importance.
-        return -1
-    max_pixel = 1.0
-    psnr = 20 * log10(max_pixel / np.sqrt(mse))
-    return np.round(psnr,2)
+
