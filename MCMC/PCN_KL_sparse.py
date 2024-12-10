@@ -47,7 +47,7 @@ def sparse_A(A):
     
     return indice_A,values_A
 
-def PCN(x_init,Y,A,sigma,hyper,M = 10000,burn_in = 10000):
+def PCN(x_init,Y,A,sigma,hyper,M = 500000,burn_in = 500000):
     
     x = x_init.to(torch.float64)
     Y = Y.to(torch.float64)
@@ -87,7 +87,7 @@ def PCN(x_init,Y,A,sigma,hyper,M = 10000,burn_in = 10000):
     c = torch.zeros(E.shape[0],device = device,dtype = torch.float64)
     
     for i in range(E.shape[0]):
-        c[i] = x.T@E[:,i:i+1]/(eta[i]).sqrt()
+        c[i] = x.T@E[:,i:i+1]/eta[i].sqrt()
         
     c0 = c[0:K].view(-1,1)+torch.randn_like(c[0:K].view(-1,1))*0.1
     x0 = E_truncated@(sqrt_Eta_truncated*c0)

@@ -12,7 +12,7 @@ def GIG(mu):
     a=1+0.5*(ink-((ink+2).square()-4).sqrt())
     return torch.where((1/(1+a))>=torch.rand_like(mu), mu/a, mu*a)    
 
-def shrinkage(x_sample,a,b):
+def shrinkage(x_sample,a,b, std = True):
     
     N,P = x_sample.size()
     
@@ -29,10 +29,13 @@ def shrinkage(x_sample,a,b):
     #tau = v/inv_gauss(v/ink.square()).sqrt()
     tau = v*GIG((1e1*ink).square()/(1e2*v)).sqrt()
     
-    return torch.where(torch.isnan(tau),1e4,torch.where(torch.isinf(tau),1e4, tau/lam.square()))
+    if std:
+        return torch.where(torch.isnan(tau),1e-4,tau/lam.square())
+    else:
+        return torch.where(torch.isnan(tau), 1e4, torch.where(torch.isinf(tau),1e-4,lam.square()/tau))
+        
 
-
-def shrinkage1(x_sample,a,b):
+def shrinkage1(x_sample,a,b, std = True):
     
     N,P = x_sample.size()
     
@@ -45,4 +48,8 @@ def shrinkage1(x_sample,a,b):
     #tau = 1/inv_gauss(1/ink).sqrt()
     tau = GIG(ink).sqrt()
             
-    return torch.where(torch.isnan(tau),1e3,torch.where(torch.isinf(tau),1e3, tau/lam))
+    if std:
+        return torch.where(torch.isnan(tau),1e-3, tau/lam)
+    else:
+        return torch.where(torch.isnan(tau), 1e3, torch.where(torch.isinf(tau),1e-3,lam/tau))
+        

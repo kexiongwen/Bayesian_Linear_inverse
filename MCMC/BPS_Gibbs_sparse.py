@@ -15,7 +15,6 @@ def difference(x,axis = 0):
         diff = x[:,1:]-x[:,0:-1]
         return diff
     
-        
 def inverse_difference(x,axis = 0):
     
     P1,P2 = x.size()
@@ -52,13 +51,13 @@ def sparse_A(A,device):
     return indice_A,values_A,indice_AT,values_AT  
 
 
-def BPS_Gibbs(x_init,Y,A,sigma,hyper,h = 1,M = 300000,burn_in = 300000):
+def BPS_Gibbs(x_init,Y,A,sigma,hyper,gamma1 = 1,gamma2 = None,M = 300000,burn_in = 300000):
     
-    if h == 1: 
-        a,b,c,d,e,f = hyper
+    if gamma2 == None:  
+        a,b = hyper
     else:
         a,b,c,d = hyper
-        
+    
     device = Y.device
     N,P = A.shape
     
@@ -75,27 +74,31 @@ def BPS_Gibbs(x_init,Y,A,sigma,hyper,h = 1,M = 300000,burn_in = 300000):
     eta = 100
     
     #Initialization
-    
     v = torch.randn(pixel,pixel,device = device)
 
-    D1 = shrinkage(difference(x_sample,axis = 0),a,b)
-    D2 = shrinkage(difference(x_sample,axis = 1),c,d)
-    if h == 1:
-        D3 = shrinkage(x_sample, e,f)
-        
+    if gamma1 == 0:        
+        D1 = shrinkage1(difference(x_sample,axis = 0),a,b)
+        D2 = shrinkage1(difference(x_sample,axis = 1),a,b)
+    elif gamma1 == 1:
+        D1 = shrinkage(difference(x_sample,axis = 0),a,b)
+        D2 = shrinkage(difference(x_sample,axis = 1),a,b)
+    
+    if gamma2 is not None:
+        if gamma2 == 0:
+            D3 = shrinkage1(x_sample,c,d)
+        elif gamma2 == 1:
+            D3 = shrinkage(x_sample,c,d)
+    
     x_mean = torch.zeros(pixel,pixel,device = device)
     x_2 = torch.zeros(pixel,pixel,device = device)
     T = 0
 
     for i in tqdm(range(1,M+burn_in)):
-                
-        diff1_ax0_v = difference(v,axis = 0)/D1
-        diff1_ax1_v = difference(v,axis = 1)/D2
-        
-        if h == 1:
+                      
+        if gamma2 is not None:
             
-            ink = (spmm(indice_A, values_A, N,P,v.view(-1,1)).square()).sum()/(sigma2*N)+(diff1_ax0_v.square()).sum()/N\
-                +(diff1_ax1_v.square()).sum()/N+((v/D3).square()).sum()/N    
+            ink = (spmm(indice_A, values_A, N,P,v.view(-1,1)).square()).sum()/(sigma2*N)+((difference(v,axis = 0)/D1).square()).sum()/N\
+                +((difference(v,axis = 1)/D2).square()).sum()/N+((v/D3).square()).sum()/N    
                 
             gradient = (spmm(indice_AT,values_AT,P,N,(spmm(indice_A, values_A, N,P,x_sample.view(-1,1))-Y))/(N*sigma2)).view(pixel,pixel)\
                 +(inverse_difference(difference(x_sample,axis=0)/D1.square(),axis=0)\
@@ -103,7 +106,8 @@ def BPS_Gibbs(x_init,Y,A,sigma,hyper,h = 1,M = 300000,burn_in = 300000):
                 
         else:
             
-            ink = (spmm(indice_A, values_A, N,P,v.view(-1,1)).square()).sum()/(sigma2*N)+(diff1_ax0_v.square()).sum()/N+(diff1_ax1_v.square()).sum()/N    
+            ink = (spmm(indice_A, values_A, N,P,v.view(-1,1)).square()).sum()/(sigma2*N)+((difference(v,axis = 0)/D1).square()).sum()/N\
+                +((difference(v,axis = 1)/D2).square()).sum()/N    
             
             gradient = (spmm(indice_AT,values_AT,P,N,(spmm(indice_A, values_A, N,P,x_sample.view(-1,1))-Y))/(N*sigma2)).view(pixel,pixel)\
                 +(inverse_difference(difference(x_sample,axis=0)/D1.square(),axis=0)\
@@ -127,16 +131,23 @@ def BPS_Gibbs(x_init,Y,A,sigma,hyper,h = 1,M = 300000,burn_in = 300000):
         x_sample.add_(v,alpha = t[indicator])
         
         if indicator == 0:
-                        
-            D1 = shrinkage(difference(x_sample,axis = 0),a,b)
-            D2 = shrinkage(difference(x_sample,axis = 1),c,d)
             
-            if h == 1:
-                D3 = shrinkage(x_sample,e,f)
-        
+            if gamma1 == 0:        
+                D1 = shrinkage1(difference(x_sample,axis = 0),a,b)
+                D2 = shrinkage1(difference(x_sample,axis = 1),a,b)
+            elif gamma1 == 1:
+                D1 = shrinkage(difference(x_sample,axis = 0),a,b)
+                D2 = shrinkage(difference(x_sample,axis = 1),a,b)
+                
+            if gamma2 is not None:
+                
+                if gamma2 == 0:
+                    D3 = shrinkage1(x_sample,c,d)
+                elif gamma2 == 1:
+                    D3 = shrinkage(x_sample,c,d)
+                    
         elif indicator == 1:
             v = torch.randn_like(gradient)
-            
         else:
             v.add_(gradient, alpha = - 2*v_gradient/gradient.square().sum())
             

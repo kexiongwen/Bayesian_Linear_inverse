@@ -14,16 +14,16 @@ def difference(x,axis = 0):
         
     return diff
 
-def Gibbs_sampling(x_init,Y,A,sigma,hyper,h = 1,M = 2500,burn_in = 2500):
+def Gibbs_sampling(x_init,Y,A,sigma,hyper,gamma1 = 1,gamma2 = None,M = 2500,burn_in = 2500):
     
     x_sample = x_init.to(torch.float32)
     Y = Y.to(torch.float32)
     A = A.to(torch.float32)
     
-    if h == 1:
-        a,b,c,d,e,f = hyper
-    else:
+    if gamma2 is not None:
         a,b,c,d = hyper
+    else:
+        a,b = hyper
     
     device = A.device
     _,P = A.shape
@@ -36,16 +36,26 @@ def Gibbs_sampling(x_init,Y,A,sigma,hyper,h = 1,M = 2500,burn_in = 2500):
     x_2 = torch.zeros((P,1),device = device)
     
     for i in tqdm(range(1,M+burn_in)):
-                
-        D1 = shrinkage(difference(x_sample.view(pixel,pixel),0),a,b).view(-1,1)
-        D2 = shrinkage(difference(x_sample.view(pixel,pixel),1),c,d).view(-1,1)
         
-        if h == 1:
-            D3 = shrinkage(x_sample,e,f).view(-1,1)
-        if h == 1:
+        if gamma1 == 0:
+            D1 = shrinkage1(difference(x_sample.view(pixel,pixel),0),a,b,std = False).view(-1,1)
+            D2 = shrinkage1(difference(x_sample.view(pixel,pixel),1),a,b,std = False).view(-1,1)
+        else:
+            D1 = shrinkage(difference(x_sample.view(pixel,pixel),0),a,b,std = False).view(-1,1)
+            D2 = shrinkage(difference(x_sample.view(pixel,pixel),1),a,b,std = False).view(-1,1)
+             
+        if gamma2 is not None:
+            
+            if gamma2 == 0:
+                D3 = shrinkage1(x_sample,c,d,std = False).view(-1,1)
+            else:
+                D3 = shrinkage(x_sample,c,d,std = False).view(-1,1)
+                
+        if gamma2 is not None:
             _,R = torch.linalg.qr(torch.concatenate(((D1*Dv).to_dense(),(D2*Dh).to_dense(),torch.diag(D3.ravel()))))
         else:    
             _,R = torch.linalg.qr(torch.concatenate(((D1*Dv).to_dense(),(D2*Dh).to_dense())))
+            
             
         CAT = solve_triangular(R.T,A.T,upper = False)/sigma
         
