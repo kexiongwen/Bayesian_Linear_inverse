@@ -2,8 +2,6 @@ import math
 import torch
 import numpy as np
 
-
-
 M_PI = math.pi
 
 def MAXX(x, y):
@@ -101,15 +99,15 @@ def radonTransform(nt, nx, ny):
     return np.flipud(R)
 
 
-def initial(A,y,device):
+def initial(A, y, device):
     
     _,P = A.shape    
-    pixel = int(P**0.5)
+    pixel = int(P ** 0.5)
     
     y0 = torch.from_numpy(y).to(device)
     A0 = torch.from_numpy(A.copy()).to(device)
     
-    return torch.linalg.solve(A0.T@A0+10*torch.diag(torch.ones(pixel**2,device = device)),A0.T@y0)
+    return torch.linalg.solve(A0.T @ A0 + 10 * torch.diag(torch.ones(pixel ** 2, device = device)),A0.T @ y0)
 
 
 
