@@ -21,9 +21,9 @@ def Gibbs_sampling(x_init, Y, A, sigma, hyper, gamma1 = 1, gamma2 = None, M = 25
     A = A.to(torch.float32)
     
     if gamma2 is not None:
-        a,b,c,d = hyper
+        a, b, c, d = hyper
     else:
-        a,b = hyper
+        a, b = hyper
     
     device = A.device
     _,P = A.shape
