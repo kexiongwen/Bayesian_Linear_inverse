@@ -1,4 +1,5 @@
 import torch
+import time
 import numpy as np
 from torch_sparse import spmm
 from tqdm import tqdm
@@ -47,7 +48,7 @@ def sparse_A(A):
     
     return indice_A, values_A
 
-def PCN(x_init, Y, A, sigma, hyper, M = 500000, burn_in = 500000):
+def PCN(x_init, Y, A, sigma, hyper, M = 50000, burn_in = 1000000):
     
     x = x_init.to(torch.float64)
     Y = Y.to(torch.float64)
@@ -78,6 +79,7 @@ def PCN(x_init, Y, A, sigma, hyper, M = 500000, burn_in = 500000):
     
     x_mean = torch.zeros((P, 1), device = device)
     x_square = torch.zeros((P, 1), device = device)
+    x_samples = []
     
     accept = 0
     
@@ -92,6 +94,8 @@ def PCN(x_init, Y, A, sigma, hyper, M = 500000, burn_in = 500000):
     c0 = c[0:K].view(-1,1) + torch.randn_like(c[0:K].view(-1,1)) * 0.1
     x0 = E_truncated @ (sqrt_Eta_truncated * c0)
     Loss_old = Psi(Y, x0, indice_A, values_A, N, P, sigma2, pixel, lambda_tv)
+    
+    start_time = time.time()
     
     for i in tqdm(range(M + burn_in)):
     
@@ -117,10 +121,15 @@ def PCN(x_init, Y, A, sigma, hyper, M = 500000, burn_in = 500000):
             x_square.addcmul_(x0, x0, value = 1 / M)            
             accept_rate = accept / (i + 1 - burn_in) * 100
             
+            x_samples.append(x0.view(pixel, pixel).to('cpu'))
+            
             if i%5000 == 0:
                 print(f"\naccepted ratio:{accept_rate}%")
+    
+    end_time = time.time()
+    execution_time = (end_time - start_time) * M / (M + burn_in)
     
     x_var = x_square - x_mean.square()
     x_mean[x_mean < 0] = 0
     
-    return x_mean.view(pixel, pixel), x_var.sqrt().view(pixel, pixel)
+    return x_mean.view(pixel, pixel), x_var.sqrt().view(pixel, pixel), x_samples, execution_time

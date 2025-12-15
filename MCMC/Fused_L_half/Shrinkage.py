@@ -6,7 +6,7 @@ def inv_gauss(mu):
     a = 1 + 0.5 * (ink - ((ink + 2).square() - 4).sqrt())
     return torch.where((1 / (1 + a)) >= torch.rand_like(mu), mu * a, mu / a)
 
-    
+
 def GIG(mu):
     ink = (1e1 * torch.randn_like(mu)).square() / (1e2 * mu)
     a = 1 + 0.5 * (ink - ((ink + 2).square() - 4).sqrt())
@@ -22,18 +22,17 @@ def shrinkage(x_sample, a, b, std = True):
     ink = ink.mul_(lam)
         
     #Sample V
-    #v = 2 / inv_gauss(1 / ink)
-    v = 2 * GIG(ink)
+    v = 2 / inv_gauss(1 / ink)
+    #v = 2 * GIG(ink)
     
     #Sample tau
-    #tau = v / inv_gauss(v / ink.square()).sqrt()
-    tau = v * GIG((1e1 * ink).square() / (1e2 * v)).sqrt()
+    tau = v / inv_gauss(v / ink.square()).sqrt()
+    #tau = v * GIG((1e1 * ink).square() / (1e2 * v)).sqrt()
     
     if std:
         return torch.where(torch.isnan(tau), 1e-4, tau / lam.square())
     else:
         return torch.where(torch.isnan(tau), 1e4, torch.where(torch.isinf(tau), 1e-4, lam.square() / tau))
-        
 
 def shrinkage1(x_sample, a, b, std = True):
     
@@ -42,6 +41,21 @@ def shrinkage1(x_sample, a, b, std = True):
     #Sample lambda
     ink = x_sample.abs()
     lam = Gamma(N * P + a, ink.sum() + b).sample()
+    ink = ink.mul_(lam)
+            
+    #Sample tau
+    #tau = 1 / inv_gauss(1 / ink).sqrt()
+    tau = GIG(ink).sqrt()
+            
+    if std:
+        return torch.where(torch.isnan(tau), 1e-3, tau / lam)
+    else:
+        return torch.where(torch.isnan(tau), 1e3, torch.where(torch.isinf(tau), 1e-3, lam / tau))
+
+
+def shrinkage1_EB(x_sample, lam, std = True):
+     
+    ink = x_sample.abs()
     ink = ink.mul_(lam)      
             
     #Sample tau
@@ -52,4 +66,25 @@ def shrinkage1(x_sample, a, b, std = True):
         return torch.where(torch.isnan(tau), 1e-3, tau / lam)
     else:
         return torch.where(torch.isnan(tau), 1e3, torch.where(torch.isinf(tau), 1e-3, lam / tau))
+   
+
+def shrinkage_EB(x_sample, lam, std = True):
+     
+    #Sample lam
+    ink = x_sample.abs().sqrt()
+    ink = ink.mul_(lam)
         
+    #Sample V
+    v = 2 / inv_gauss(1 / ink)
+    #v = 2 * GIG(ink)
+    
+    #Sample tau
+    tau = v / inv_gauss(v / ink.square()).sqrt()
+    #tau = v * GIG((1e1 * ink).square() / (1e2 * v)).sqrt()
+    
+    if std:
+        return torch.where(torch.isnan(tau), 1e-4, tau / lam ** 2)
+    else:
+        return torch.where(torch.isnan(tau), 1e4, torch.where(torch.isinf(tau), 1e-4, lam ** 2 / tau))
+ 
+
